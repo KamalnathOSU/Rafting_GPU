@@ -6,7 +6,7 @@ void StrainBpq()
   int g_i,g_j,g_k,gijk;//Used in the shortcut wrapper
   int i,j,k,l;
   int ii_i,ii_j,ii_k,ii_l;
-  double omega_inv[3][3],omega[3][3],Bpqsum=0;
+  double omega_inv[3][3],omega[3][3],Bpqavg=0;
 #ifdef DISLOCATION_ACTIVITY_ON
   double Bpq_const[P+1][P+1];
 #else
@@ -138,32 +138,37 @@ for(i=0;i<=P;i++)
  //Subtracting the average Bpq for misfit defects
  for(i=0;i<=P;i++)
  {
-   Bpqsum=0;
-#pragma omp parallel for private(g_i,g_j,g_k,gijk) reduction(+: Bpqsum)
+   Bpqavg=0;
+#pragma omp parallel for private(g_i,g_j,g_k,gijk) reduction(+: Bpqavg)
    for_gijk
 // tuned to match Ning's code
-     Bpqsum+=B_pq[g_i][g_j][g_k][i][P]*( 1.0 + (g_k!=0)*1.0 );
+     Bpqavg+=B_pq[g_i][g_j][g_k][i][P]*( 1.0 + (g_k!=0)*1.0 );
    efor_gijk
-   Bpqsum/=(L*M*N);
+   Bpqavg/=(L*M*N);
+   printf("Bpqavg=%le\n",Bpqavg);
+
 #pragma omp parallel for private(g_i,g_j,g_k,gijk)
    for_gijk
 	   if(gijk==0) continue;//skipping the origin
-     B_pq[g_i][g_j][g_k][P][i]-=Bpqsum;
+     B_pq[g_i][g_j][g_k][P][i]-=Bpqavg;
    efor_gijk
  }
 #else
- Bpqsum=0;//slight modification is done to avoid overflow problem
-#pragma omp parallel for private(g_i,g_j,g_k,gijk) reduction(+: Bpqsum)
+ Bpqavg=0;//slight modification is done to avoid overflow problem
+#pragma omp parallel for private(g_i,g_j,g_k,gijk) reduction(+: Bpqavg)
    for_gijk
 // tuned to match Ning's code
-     Bpqsum+=Bhh[g_i][g_j][g_k]*( 1.0 + ( (g_k!=0)&&(g_k!=N/2) )*1.0 );
+     Bpqavg+=Bhh[g_i][g_j][g_k]*( 1.0 + ( (g_k!=0)&&(g_k!=N/2) )*1.0 );
    efor_gijk
-   Bpqsum/=(L*M*N);
+   Bpqavg/=(L*M*N);
+   printf("Bpqavg=%le\n",Bpqavg);
+   /*
 #pragma omp parallel for private(g_i,g_j,g_k,gijk)
    for_gijk
 	   if(gijk==0) continue;//skipping the origin
-     Bhh[g_i][g_j][g_k]-=Bpqsum;
+     Bhh[g_i][g_j][g_k]-=Bpqavg;
    efor_gijk
+   */
 #endif
  //  Use the applied stress routine to calculate the stress in global coordinates
 
